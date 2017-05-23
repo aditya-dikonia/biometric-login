@@ -39,12 +39,6 @@ class LoginController extends Controller
 			}
 		}
 		return view('login.username');
-		/* if($id == NULL){
-			return view('login.username');
-		}else{
-			$data['id'] = $id;
-			return view('login.login_type', $data);
-		} */
     }
 	
 	public function logintype()
@@ -396,4 +390,75 @@ class LoginController extends Controller
 		$data['user_id'] = base64_decode($user_id);
 		return view('login.change_pass', $data);
 	}
+	
+	// Webservices Start
+	/**************** Check Username exist or not ****************/ 
+	public function check_username(){
+		$inputs = Request::all();
+		if(!isset($inputs['username'])){
+			return response()->json(['status' => false]);
+		}
+		$is_exist = DB::table('sysusers')->where('Username', $inputs['username'])->count();
+		if($is_exist){
+			return response()->json(['status' => true]);
+		}else{
+			return response()->json(['status' => false]);
+		}
+	}
+	
+	/**************** Check Username and Password exist or not ****************/ 
+	public function check_password(){
+		$inputs = Request::all();
+		if(!isset($inputs['username']) || !isset($inputs['password'])){
+			return response()->json(['status' => false]);
+		}
+		$is_exist = DB::table('sysusers')->where('Username', $inputs['username'])->where('password', md5($inputs['password']))->count();
+		if($is_exist){
+			return response()->json(['status' => true]);
+		}else{
+			return response()->json(['status' => false]);
+		}
+	}
+	
+	/**************** Check Username and OTP exist or not, OTP generated with in 5 minute prior only ****************/ 
+	public function verify_otp(){
+		$inputs = Request::all();
+		if(!isset($inputs['username']) || !isset($inputs['otp'])){
+			return response()->json(['status' => false]);
+		}
+		$is_exist = DB::table('sysusers')->where('Username', $inputs['username'])->where('otp', $inputs['otp'])->where('otp_generate_time', '>', strtotime("- 5 minutes"))->count();
+		if($is_exist){
+			return response()->json(['status' => true]);
+		}else{
+			return response()->json(['status' => false]);
+		}
+	}
+	
+	/**************** Send and Update OTP ****************/ 
+	public function send_otp(){
+		$inputs = Request::all();
+		if(!isset($inputs['username']) || !isset($inputs['password'])){
+			return response()->json(['status' => false]);
+		}
+		$user = DB::table('sysusers')->where('Username', $inputs['username'])->where('password', md5($inputs['password']))->first();
+		if(isset($user->mobile_no) && $user->mobile_no != ''){
+			$otp = mt_rand(1000, 9999);
+			$message = "Business One login OTP: ".$otp;
+			$response = Nexmo::message()->send([
+				'to' => $user->mobile_no,
+				'from' => 'NEXMO',
+				'text' => $message
+			]);
+			if(isset($response['status']) && $response['status'] == 1){
+				return response()->json(['status' => false]);
+			}else{
+				$id = $user->UserID;
+				DB::table('sysusers')->where('UserID', $id)->update(['otp' => $otp, 'otp_generate_time' => time() ]);
+				return response()->json(['status' => true]);
+			}
+		}else{
+			return response()->json(['status' => false]);
+		}
+	}
+	// Webservices End
 }

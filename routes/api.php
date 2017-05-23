@@ -16,3 +16,8 @@ use Illuminate\Http\Request;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::any('/username', 'LoginController@check_username');
+Route::any('/password', 'LoginController@check_password');
+Route::any('/verify_otp', 'LoginController@verify_otp');
+Route::any('/send_otp', 'LoginController@send_otp');
